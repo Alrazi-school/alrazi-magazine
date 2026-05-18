@@ -18,7 +18,7 @@ export default async function ArticlePage({ params }: any) {
     }
   })
 
-  if (!article) notFound()
+
 if (article.status !== 'PUBLISHED' && article.status !== 'PUBLISHED') notFound()
 
   const [comments, liked, related] = await Promise.all([
