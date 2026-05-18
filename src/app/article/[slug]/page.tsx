@@ -19,8 +19,8 @@ export default async function ArticlePage({ params }: any) {
   })
 
 
-if (article.status !== 'PUBLISHED' && article.status !== 'PUBLISHED') notFound()
-
+if (!article || article.status !== 'PUBLISHED') notFound()
+  
   const [comments, liked, related] = await Promise.all([
     prisma.comment.findMany({
       where: { articleId: article.id },
