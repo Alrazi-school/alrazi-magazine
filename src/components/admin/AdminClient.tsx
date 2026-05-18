@@ -11,9 +11,11 @@ const TABS = [
   { id: 'dashboard', label: 'الرئيسية', icon: LayoutDashboard },
   { id: 'review', label: 'المراجعة', icon: Clock, alert: true },
   { id: 'articles', label: 'المقالات', icon: FileText },
+  { id: 'editor', label: 'إضافة مقال', icon: Plus },
   { id: 'users', label: 'الأعضاء', icon: Users },
   { id: 'banners', label: 'البانر', icon: ImgIcon },
   { id: 'media', label: 'الصور والفيديو', icon: ImgIcon },
+  { id: 'settings', label: 'الإعدادات', icon: Settings },
 ]
 
 const STATUS_CLS: Record<string, string> = { PUBLISHED: 'b-pub', REVIEW: 'b-rev', DRAFT: 'b-drf', REJECTED: 'b-rej' }
