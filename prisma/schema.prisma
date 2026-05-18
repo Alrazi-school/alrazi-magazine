@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum Status {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  REJECTED
+}
+
+model User {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  password  String
+  role      Role      @default(STUDENT)
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  articles  Article[]
+  comments  Comment[]
+  likes     Like[]
+  @@map("users")
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  slug     String    @unique
+  icon     String
+  order    Int       @default(0)
+  articles Article[]
+  @@map("categories")
+}
+
+model Article {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  excerpt     String
+  content     String    @db.Text
+  coverImage  String?
+  coverEmoji  String    @default("📝")
+  status      Status    @default(DRAFT)
+  featured    Boolean   @default(false)
+  views       Int       @default(0)
+  readTime    Int       @default(3)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id])
+  comments    Comment[]
+  likes       Like[]
+  @@map("articles")
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  imageUrl  String
+  title     String?
+  subtitle  String?
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  @@map("banners")
+}
+
+model MediaItem {
+  id        String   @id @default(cuid())
+  type      String
+  url       String
+  title     String?
+  createdAt DateTime @default(now())
+  @@map("media_items")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  articleId String
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  @@map("comments")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  articleId String
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  @@unique([articleId, userId])
+  @@map("likes")
+}
