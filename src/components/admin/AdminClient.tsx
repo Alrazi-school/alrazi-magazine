@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { LayoutDashboard, FileText, Clock, Users, Image as ImgIcon, LogOut, Upload, Trash2, CheckCircle, XCircle, Eye, Plus, X } from 'lucide-react'
+import { LayoutDashboard, FileText, Clock, Users, Image as ImgIcon, LogOut, Upload, Trash2, CheckCircle, XCircle, Eye, Plus, X, Settings } from 'lucide-react'
 import { getRoleLabel, getStatusLabel, getInitials, formatDate } from '@/lib/utils'
 import toast, { Toaster } from 'react-hot-toast'
 
@@ -479,6 +479,18 @@ export default function AdminClient({ userName }: { userName: string }) {
             </div>
           </div>
         )}
+        {/* ── EDITOR (Admin) ── */}
+        {tab === 'editor' && (
+          <div>
+            <h1 style={{ fontSize: '1.3rem', fontWeight: 900, marginBottom: '1.5rem' }}>إضافة مقال جديد</h1>
+            <AdminArticleEditor categories={[]} onSuccess={() => { setTab('articles'); load() }} />
+          </div>
+        )}
+
+        {/* ── SETTINGS ── */}
+        {tab === 'settings' && (
+          <AdminSettings userId={''} />
+        )}
       </main>
 
       {/* ── ADD USER MODAL ── */}
@@ -571,4 +583,149 @@ export default function AdminClient({ userName }: { userName: string }) {
       )}
     </div>
   )
+
+function AdminSettings({ userId }: { userId: string }) {
+  const [settings, setSettings] = useState<any>({
+    siteName: 'مجلة الرازي المدرسية',
+    schoolName: 'مدرسة الرازي بنين - الحلقة الثانية',
+    address: 'دبي، الإمارات العربية المتحدة',
+    phone: '',
+    email: 'hany.aboueldahab@moe.sch.ae',
+    primaryColor: '#0A3D7A',
+    logoUrl: '',
+    allowComments: true,
+    autoPublish: false,
+  })
+  const [pass, setPass] = useState({ current: '', newPass: '', confirm: '' })
+  const [logoUploading, setLogoUploading] = useState(false)
+  const logoRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    fetch('/api/admin?type=settings').then(r => r.json()).then(d => { if (d.settings) setSettings(d.settings) })
+  }, [])
+
+  const saveSettings = async () => {
+    const res = await fetch('/api/admin', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'settings', ...settings }) })
+    if (res.ok) toast.success('✅ تم حفظ الإعدادات!')
+    else toast.error('خطأ في الحفظ')
+  }
+
+  const changePassword = async () => {
+    if (!pass.current || !pass.newPass) { toast.error('أدخل كلمة السر الحالية والجديدة'); return }
+    if (pass.newPass !== pass.confirm) { toast.error('كلمة السر الجديدة غير متطابقة'); return }
+    if (pass.newPass.length < 6) { toast.error('كلمة السر يجب أن تكون 6 أحرف على الأقل'); return }
+    const res = await fetch('/api/admin', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'changePassword', currentPassword: pass.current, newPassword: pass.newPass }) })
+    const d = await res.json()
+    if (res.ok) { toast.success('✅ تم تغيير كلمة السر!'); setPass({ current: '', newPass: '', confirm: '' }) }
+    else toast.error(d.error || 'خطأ')
+  }
+
+  const uploadLogo = async (file: File) => {
+    setLogoUploading(true)
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const res = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: e.target?.result, folder: 'alrazi/logo' }) })
+      const d = await res.json()
+      if (d.url) { setSettings((s: any) => ({ ...s, logoUrl: d.url })); toast.success('✅ تم رفع الشعار!') }
+      setLogoUploading(false)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const box: React.CSSProperties = { background: '#fff', borderRadius: '16px', border: '1px solid rgba(10,61,122,.1)', padding: '1.5rem', marginBottom: '1.2rem', boxShadow: '0 4px 20px rgba(10,61,122,.08)' }
+  const label: React.CSSProperties = { display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '5px', color: '#374151' }
+
+  return (
+    <div style={{ maxWidth: '640px' }}>
+      {/* School info */}
+      <div style={box}>
+        <h2 style={{ fontWeight: 800, marginBottom: '1.2rem', fontSize: '15px' }}>🏫 بيانات المدرسة</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div><label style={label}>اسم المجلة</label><input className="inp" value={settings.siteName} onChange={e => setSettings((s: any) => ({ ...s, siteName: e.target.value }))} /></div>
+          <div><label style={label}>اسم المدرسة</label><input className="inp" value={settings.schoolName} onChange={e => setSettings((s: any) => ({ ...s, schoolName: e.target.value }))} /></div>
+          <div><label style={label}>العنوان</label><input className="inp" value={settings.address} onChange={e => setSettings((s: any) => ({ ...s, address: e.target.value }))} /></div>
+          <div><label style={label}>رقم الهاتف</label><input className="inp" value={settings.phone} onChange={e => setSettings((s: any) => ({ ...s, phone: e.target.value }))} dir="ltr" /></div>
+          <div><label style={label}>البريد الإلكتروني</label><input className="inp" value={settings.email} onChange={e => setSettings((s: any) => ({ ...s, email: e.target.value }))} dir="ltr" /></div>
+        </div>
+      </div>
+
+      {/* Logo */}
+      <div style={box}>
+        <h2 style={{ fontWeight: 800, marginBottom: '1.2rem', fontSize: '15px' }}>🖼️ شعار المدرسة</h2>
+        {settings.logoUrl ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <img src={settings.logoUrl} alt="logo" style={{ width: '80px', height: '80px', objectFit: 'contain', borderRadius: '12px', border: '1px solid #e2e8f0' }} />
+            <button onClick={() => setSettings((s: any) => ({ ...s, logoUrl: '' }))} className="btn btn-danger btn-sm">حذف الشعار</button>
+          </div>
+        ) : (
+          <div onClick={() => logoRef.current?.click()} style={{ height: '100px', border: '2px dashed #e2e8f0', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: '8px' }} className="hover:border-blue-300">
+            <Upload size={22} style={{ color: '#9CA3AF' }} />
+            <span style={{ fontSize: '13px', color: '#5A6A8A' }}>{logoUploading ? 'جاري الرفع...' : 'ارفع شعار المدرسة'}</span>
+          </div>
+        )}
+        <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadLogo(e.target.files[0])} />
+      </div>
+
+      {/* Theme color */}
+      <div style={box}>
+        <h2 style={{ fontWeight: 800, marginBottom: '1.2rem', fontSize: '15px' }}>🎨 لون الثيم</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          {['#0A3D7A', '#1B5E20', '#4A148C', '#B71C1C', '#E65100', '#006064', '#1A237E', '#37474F'].map(c => (
+            <button key={c} onClick={() => setSettings((s: any) => ({ ...s, primaryColor: c }))}
+              style={{ width: '40px', height: '40px', borderRadius: '50%', background: c, border: settings.primaryColor === c ? '3px solid #F0C040' : '3px solid transparent', cursor: 'pointer', transition: 'all .2s', boxShadow: settings.primaryColor === c ? '0 0 0 2px #0A3D7A' : 'none' }} />
+          ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', color: '#5A6A8A' }}>لون مخصص:</span>
+            <input type="color" value={settings.primaryColor} onChange={e => setSettings((s: any) => ({ ...s, primaryColor: e.target.value }))}
+              style={{ width: '44px', height: '44px', borderRadius: '10px', border: '1px solid #e2e8f0', cursor: 'pointer', padding: '2px' }} />
+          </div>
+        </div>
+        <div style={{ marginTop: '12px', padding: '12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}
+          style2={{ background: settings.primaryColor }}>
+          <div style={{ padding: '10px 20px', borderRadius: '10px', background: settings.primaryColor, color: '#fff', fontWeight: 700, fontSize: '14px' }}>
+            معاينة اللون المختار
+          </div>
+        </div>
+      </div>
+
+      {/* Publishing settings */}
+      <div style={box}>
+        <h2 style={{ fontWeight: 800, marginBottom: '1.2rem', fontSize: '15px' }}>📋 إعدادات النشر</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {[
+            { key: 'allowComments', label: 'السماح بالتعليقات', desc: 'يسمح للأعضاء بالتعليق على المقالات' },
+            { key: 'autoPublish', label: 'نشر تلقائي للمعلمين', desc: 'ينشر مقالات المعلمين مباشرة بدون مراجعة' },
+          ].map(item => (
+            <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', cursor: 'pointer' }}>
+              <div onClick={() => setSettings((s: any) => ({ ...s, [item.key]: !s[item.key] }))}
+                style={{ width: '44px', height: '24px', borderRadius: '99px', background: settings[item.key] ? '#0A3D7A' : '#e2e8f0', position: 'relative', transition: 'all .3s', cursor: 'pointer', flexShrink: 0 }}>
+                <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '3px', transition: 'all .3s', right: settings[item.key] ? '3px' : 'calc(100% - 21px)', boxShadow: '0 1px 4px rgba(0,0,0,.2)' }} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '13px' }}>{item.label}</div>
+                <div style={{ fontSize: '11px', color: '#5A6A8A' }}>{item.desc}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <button onClick={saveSettings} className="btn btn-p w-full justify-center" style={{ padding: '.9rem', marginBottom: '1.5rem', fontSize: '15px' }}>
+        💾 حفظ جميع الإعدادات
+      </button>
+
+      {/* Change password */}
+      <div style={box}>
+        <h2 style={{ fontWeight: 800, marginBottom: '1.2rem', fontSize: '15px' }}>🔑 تغيير كلمة السر</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div><label style={label}>كلمة السر الحالية</label><input className="inp" type="password" value={pass.current} onChange={e => setPass({ ...pass, current: e.target.value })} dir="ltr" /></div>
+          <div><label style={label}>كلمة السر الجديدة</label><input className="inp" type="password" value={pass.newPass} onChange={e => setPass({ ...pass, newPass: e.target.value })} dir="ltr" /></div>
+          <div><label style={label}>تأكيد كلمة السر الجديدة</label><input className="inp" type="password" value={pass.confirm} onChange={e => setPass({ ...pass, confirm: e.target.value })} dir="ltr" /></div>
+          <button onClick={changePassword} className="btn btn-p" style={{ padding: '.8rem' }}>🔐 تغيير كلمة السر</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+  
 }
