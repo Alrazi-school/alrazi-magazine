@@ -5,13 +5,13 @@ import bcrypt from 'bcryptjs'
 
 async function checkAdmin() {
   const session = await getSession()
-  return session.isLoggedIn && session.role === 'ADMIN' ? session : null
+  if (!session.isLoggedIn || session.role !== 'ADMIN') return null
+  return session
 }
 
 export async function GET(req: NextRequest) {
   const session = await checkAdmin()
   if (!session) return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
-
   const { searchParams } = new URL(req.url)
   const type = searchParams.get('type')
 
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
   }
   if (type === 'settings') {
     const settings = await prisma.siteSettings.findUnique({ where: { id: 'settings' } })
-    return NextResponse.json({ settings })
+    return NextResponse.json({ settings: settings || {} })
   }
   return NextResponse.json({ error: 'نوع غير صحيح' }, { status: 400 })
 }
@@ -59,7 +59,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await checkAdmin()
   if (!session) return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
-
   const body = await req.json()
   const { type } = body
 
@@ -90,16 +89,22 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const session = await checkAdmin()
   if (!session) return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
-
   const body = await req.json()
   const { type, id } = body
 
   if (type === 'user') {
     const { role, active } = body
     const data: any = {}
-    if (role) data.role = role
+    if (role !== undefined) data.role = role
     if (active !== undefined) data.active = active
     await prisma.user.update({ where: { id }, data })
+    return NextResponse.json({ ok: true })
+  }
+  if (type === 'userPassword') {
+    const { newPassword } = body
+    if (!newPassword || newPassword.length < 6) return NextResponse.json({ error: 'كلمة السر قصيرة جداً' }, { status: 400 })
+    const hash = await bcrypt.hash(newPassword, 10)
+    await prisma.user.update({ where: { id }, data: { password: hash } })
     return NextResponse.json({ ok: true })
   }
   if (type === 'changePassword') {
@@ -114,7 +119,12 @@ export async function PATCH(req: NextRequest) {
   }
   if (type === 'banner') {
     const { active, order, title, subtitle } = body
-    await prisma.banner.update({ where: { id }, data: { active, order, title, subtitle } })
+    const data: any = {}
+    if (active !== undefined) data.active = active
+    if (order !== undefined) data.order = order
+    if (title !== undefined) data.title = title
+    if (subtitle !== undefined) data.subtitle = subtitle
+    await prisma.banner.update({ where: { id }, data })
     return NextResponse.json({ ok: true })
   }
   if (type === 'settings') {
@@ -132,10 +142,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const session = await checkAdmin()
   if (!session) return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
-
-  const body = await req.json()
-  const { type, id } = body
-
+  const { type, id } = await req.json()
   if (type === 'user') { await prisma.user.delete({ where: { id } }); return NextResponse.json({ ok: true }) }
   if (type === 'banner') { await prisma.banner.delete({ where: { id } }); return NextResponse.json({ ok: true }) }
   if (type === 'media') { await prisma.mediaItem.delete({ where: { id } }); return NextResponse.json({ ok: true }) }
