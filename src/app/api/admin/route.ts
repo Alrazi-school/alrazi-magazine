@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     ])
     return NextResponse.json({ total, published, review, users, banners })
   }
+
   if (type === 'users') {
     const users = await prisma.user.findMany({
       select: { id: true, name: true, email: true, role: true, active: true, createdAt: true, _count: { select: { articles: true } } },
@@ -32,14 +33,17 @@ export async function GET(req: NextRequest) {
     })
     return NextResponse.json({ users })
   }
+
   if (type === 'banners') {
     const banners = await prisma.banner.findMany({ orderBy: { order: 'asc' } })
     return NextResponse.json({ banners })
   }
+
   if (type === 'media') {
     const media = await prisma.mediaItem.findMany({ orderBy: { createdAt: 'desc' } })
     return NextResponse.json({ media })
   }
+
   if (type === 'articles') {
     const status = searchParams.get('status')
     const articles = await prisma.article.findMany({
@@ -49,10 +53,16 @@ export async function GET(req: NextRequest) {
     })
     return NextResponse.json({ articles })
   }
+
   if (type === 'settings') {
-    const settings = await prisma.siteSettings.findUnique({ where: { id: 'settings' } })
-    return NextResponse.json({ settings: settings || {} })
+    try {
+      const settings = await prisma.siteSettings.findUnique({ where: { id: 'settings' } })
+      return NextResponse.json({ settings: settings || {} })
+    } catch {
+      return NextResponse.json({ settings: {} })
+    }
   }
+
   return NextResponse.json({ error: 'نوع غير صحيح' }, { status: 400 })
 }
 
@@ -71,18 +81,21 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.create({ data: { name, email: email.toLowerCase(), password: hash, role: role || 'STUDENT' } })
     return NextResponse.json({ ok: true, user })
   }
+
   if (type === 'banner') {
     const { imageUrl, title, subtitle, order } = body
     if (!imageUrl) return NextResponse.json({ error: 'الصورة مطلوبة' }, { status: 400 })
     const banner = await prisma.banner.create({ data: { imageUrl, title, subtitle, order: order || 0 } })
     return NextResponse.json({ ok: true, banner })
   }
+
   if (type === 'media') {
     const { mediaType, url, title } = body
     if (!url) return NextResponse.json({ error: 'الرابط مطلوب' }, { status: 400 })
     const item = await prisma.mediaItem.create({ data: { type: mediaType || 'image', url, title } })
     return NextResponse.json({ ok: true, item })
   }
+
   return NextResponse.json({ error: 'نوع غير صحيح' }, { status: 400 })
 }
 
@@ -100,13 +113,16 @@ export async function PATCH(req: NextRequest) {
     await prisma.user.update({ where: { id }, data })
     return NextResponse.json({ ok: true })
   }
+
   if (type === 'userPassword') {
     const { newPassword } = body
-    if (!newPassword || newPassword.length < 6) return NextResponse.json({ error: 'كلمة السر قصيرة جداً' }, { status: 400 })
+    if (!newPassword || newPassword.length < 6)
+      return NextResponse.json({ error: 'كلمة السر قصيرة جداً' }, { status: 400 })
     const hash = await bcrypt.hash(newPassword, 10)
     await prisma.user.update({ where: { id }, data: { password: hash } })
     return NextResponse.json({ ok: true })
   }
+
   if (type === 'changePassword') {
     const { currentPassword, newPassword } = body
     const user = await prisma.user.findUnique({ where: { id: session.userId } })
@@ -117,6 +133,7 @@ export async function PATCH(req: NextRequest) {
     await prisma.user.update({ where: { id: session.userId }, data: { password: hash } })
     return NextResponse.json({ ok: true })
   }
+
   if (type === 'banner') {
     const { active, order, title, subtitle } = body
     const data: any = {}
@@ -127,15 +144,21 @@ export async function PATCH(req: NextRequest) {
     await prisma.banner.update({ where: { id }, data })
     return NextResponse.json({ ok: true })
   }
+
   if (type === 'settings') {
     const { siteName, schoolName, address, phone, email, primaryColor, logoUrl, allowComments, autoPublish } = body
-    await prisma.siteSettings.upsert({
-      where: { id: 'settings' },
-      update: { siteName, schoolName, address, phone, email, primaryColor, logoUrl, allowComments, autoPublish },
-      create: { id: 'settings', siteName, schoolName, address, phone, email, primaryColor, logoUrl, allowComments, autoPublish }
-    })
+    try {
+      await prisma.siteSettings.upsert({
+        where: { id: 'settings' },
+        update: { siteName, schoolName, address, phone, email, primaryColor, logoUrl, allowComments, autoPublish },
+        create: { id: 'settings', siteName, schoolName, address, phone, email, primaryColor, logoUrl, allowComments, autoPublish }
+      })
+    } catch {
+      return NextResponse.json({ error: 'جدول الإعدادات غير موجود - تأكد من تحديث قاعدة البيانات' }, { status: 500 })
+    }
     return NextResponse.json({ ok: true })
   }
+
   return NextResponse.json({ error: 'نوع غير صحيح' }, { status: 400 })
 }
 
