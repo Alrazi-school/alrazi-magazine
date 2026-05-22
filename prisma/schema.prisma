@@ -110,16 +110,16 @@ model Like {
 }
 
 model SiteSettings {
-  id           String   @id @default("settings")
-  siteName     String   @default("مجلة الرازي المدرسية")
-  schoolName   String   @default("مدرسة الرازي بنين - الحلقة الثانية")
-  address      String   @default("دبي، الإمارات العربية المتحدة")
-  phone        String   @default("")
-  email        String   @default("hany.aboueldahab@moe.sch.ae")
-  primaryColor String   @default("#0A3D7A")
-  logoUrl      String?
-  allowComments Boolean @default(true)
-  autoPublish  Boolean  @default(false)
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default("settings")
+  siteName      String   @default("مجلة الرازي المدرسية")
+  schoolName    String   @default("مدرسة الرازي بنين - الحلقة الثانية")
+  address       String   @default("دبي، الإمارات العربية المتحدة")
+  phone         String   @default("")
+  email         String   @default("hany.aboueldahab@moe.sch.ae")
+  primaryColor  String   @default("#0A3D7A")
+  logoUrl       String?
+  allowComments Boolean  @default(true)
+  autoPublish   Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
   @@map("site_settings")
 }
