@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
-import { slugify } from '@/lib/utils'
+
+function makeSlug(title: string) {
+  return `article-${Date.now()}`
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -30,9 +33,6 @@ export async function POST(req: NextRequest) {
   const { title, excerpt, content, coverImage, coverEmoji, categoryId, readTime } = body
   if (!title || !content || !categoryId) return NextResponse.json({ error: 'البيانات ناقصة' }, { status: 400 })
   const isAdmin = session.role === 'ADMIN'
-  const settings = await prisma.siteSettings.findUnique({ where: { id: 'settings' } })
-  const autoPublish = settings?.autoPublish && session.role === 'TEACHER'
-  const shouldPublish = isAdmin || autoPublish
   const article = await prisma.article.create({
     data: {
       title,
@@ -40,37 +40,38 @@ export async function POST(req: NextRequest) {
       content,
       coverImage: coverImage || null,
       coverEmoji: coverEmoji || '📝',
-      slug: slugify(title),
-      status: shouldPublish ? 'PUBLISHED' : 'REVIEW',
-      publishedAt: shouldPublish ? new Date() : null,
+      slug: makeSlug(title),
+      status: isAdmin ? 'PUBLISHED' : 'REVIEW',
+      publishedAt: isAdmin ? new Date() : null,
       readTime: readTime || 3,
       authorId: session.userId!,
       categoryId,
     }
   })
-  return NextResponse.json({ ok: true, article, published: shouldPublish }, { status: 201 })
+  return NextResponse.json({ ok: true, article }, { status: 201 })
 }
 
 export async function PATCH(req: NextRequest) {
   const session = await getSession()
   if (!session.isLoggedIn || session.role !== 'ADMIN') return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
-  const { id, action, title, excerpt, content, coverImage, coverEmoji, categoryId, readTime, featured } = await req.json()
+  const body = await req.json()
+  const { id, action } = body
   if (!id) return NextResponse.json({ error: 'id مطلوب' }, { status: 400 })
+
   if (action === 'approve') {
     await prisma.article.update({ where: { id }, data: { status: 'PUBLISHED', publishedAt: new Date() } })
   } else if (action === 'reject') {
     await prisma.article.update({ where: { id }, data: { status: 'REJECTED' } })
   } else if (action === 'featured') {
-    await prisma.article.update({ where: { id }, data: { featured: featured ?? true } })
+    await prisma.article.update({ where: { id }, data: { featured: body.featured ?? true } })
   } else if (action === 'update') {
     const data: any = {}
-    if (title) data.title = title
-    if (excerpt) data.excerpt = excerpt
-    if (content) data.content = content
-    if (coverImage !== undefined) data.coverImage = coverImage
-    if (coverEmoji) data.coverEmoji = coverEmoji
-    if (categoryId) data.categoryId = categoryId
-    if (readTime) data.readTime = readTime
+    if (body.title) data.title = body.title
+    if (body.excerpt) data.excerpt = body.excerpt
+    if (body.content) data.content = body.content
+    if (body.coverEmoji) data.coverEmoji = body.coverEmoji
+    if (body.coverImage !== undefined) data.coverImage = body.coverImage
+    if (body.categoryId) data.categoryId = body.categoryId
     await prisma.article.update({ where: { id }, data })
   }
   return NextResponse.json({ ok: true })
